@@ -13,7 +13,6 @@ async def db_connect():
     try:
         conn = await asyncpg.connect(user=env('user'),  password=env('password'), database=env('db_name'), host=env('host'))
 
-
         '''
         Таблица статусов statuses
         id_status - номер статуса
@@ -42,7 +41,6 @@ async def db_connect():
                                                                     tg_id BIGSERIAL,
                                                                     name TEXT);''')
 
-
         '''
         Таблица исполнителей performers
         id_user - номер пользователя по порядку
@@ -59,7 +57,6 @@ async def db_connect():
                                                                     rating INTEGER DEFAULT '50',
                                                                     id_specialization INTEGER REFERENCES specializations(id_specialization) NOT NULL);''')
 
-
         '''
         Таблица заказов
         id_order - номер заказа
@@ -72,6 +69,8 @@ async def db_connect():
         num_of_performers - количество исполнителей
         id_specialization - номер специализации
         description - описание работ       
+        checked - выполнен ли заказ        
+
         '''
 
         await conn.execute('''CREATE TABLE IF NOT EXISTS orders(id_order SERIAL NOT NULL PRIMARY KEY,
@@ -83,19 +82,34 @@ async def db_connect():
                                                                     time_completion TIME,
                                                                     num_of_performers INTEGER,
                                                                     id_specialization INTEGER REFERENCES specializations(id_specialization) NOT NULL, 
-                                                                    description TEXT);''')
-
+                                                                    description TEXT,
+                                                                    checked INTEGER DEFAULT '0');''')
 
         '''
         Таблица заказов исполнителей executors_orders
         id_user - номер исполнителя из таблицы performers
         id_order - номер заказа из таблицы orders
-        selected - выбран ли в качестве исполнителя        
+        selected - выбран ли в качестве исполнителя
+        checked - выполнен ли заказ        
         '''
         await conn.execute('''CREATE TABLE IF NOT EXISTS executors_orders(id_user INTEGER REFERENCES performers(id_user) NOT NULL,
                                                                             id_order INTEGER REFERENCES orders(id_order) NOT NULL,
-                                                                            selected INTEGER DEFAULT '0');''')
+                                                                            selected INTEGER DEFAULT '0',
+                                                                            checked INTEGER DEFAULT '0');''')
 
+        '''Добавление в таблицу'''
+        # await conn.execute(f'''INSERT INTO specializations(name)
+        #                               VALUES('📦Грузчик'),
+        #                                     ('🔌Электрик'),
+        #                                     ('🚽Сантехник'),
+        #                                     ('🖥️Ит-специалист'),
+        #                                     ('🪠Уборщик')
+        #                     ''')
+        #
+        # await conn.execute(f'''INSERT INTO statuses(name)
+        #                               VALUES('🔍В поиске работы'),
+        #                                     ('⏳Не беспокоить')
+        #                     ''')
 
 
     except Exception as _ex:
