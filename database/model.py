@@ -98,18 +98,18 @@ async def db_connect():
                                                                             checked INTEGER DEFAULT '0');''')
 
         '''Добавление в таблицу'''
-        # await conn.execute(f'''INSERT INTO specializations(name)
-        #                               VALUES('📦Грузчик'),
-        #                                     ('🔌Электрик'),
-        #                                     ('🚽Сантехник'),
-        #                                     ('🖥️Ит-специалист'),
-        #                                     ('🪠Уборщик')
-        #                     ''')
-        #
-        # await conn.execute(f'''INSERT INTO statuses(name)
-        #                               VALUES('🔍В поиске работы'),
-        #                                     ('⏳Не беспокоить')
-        #                     ''')
+        await conn.execute(f'''INSERT INTO specializations(name)
+                                      VALUES('📦Грузчик'),
+                                            ('🔌Электрик'),
+                                            ('🚽Сантехник'),
+                                            ('🖥️Ит-специалист'),
+                                            ('🪠Уборщик')
+                            ''')
+
+        await conn.execute(f'''INSERT INTO statuses(name)
+                                      VALUES('🔍В поиске работы'),
+                                            ('⏳Не беспокоить')
+                            ''')
 
 
     except Exception as _ex:

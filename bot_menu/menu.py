@@ -35,7 +35,7 @@ async def create_inline_kb(width: int,
     return kb_builder.as_markup()
 
 '''Клавиатура на выбор даты заказа'''
-async def kb_date_order():
+async def kb_date_order(order_datetime):
 
     # Получаем текущую дату и время
     current_datetime = datetime.now()
@@ -54,7 +54,7 @@ async def kb_date_order():
         callback_data=f'current_month'
     ), InlineKeyboardButton(
         text=str(current_year),
-        callback_data=f'yearOrder'
+        callback_data=f'current_year'
     )
     ]
     inline_markup.row(*buttons, width=3)
@@ -63,10 +63,10 @@ async def kb_date_order():
     # Инициализируем список для кнопок
     buttons: list[InlineKeyboardButton] = [InlineKeyboardButton(
         text=LEXICON_RU['resume'],
-        callback_data=f'profile_{owner}'
+        callback_data=f'profile_{order_datetime}'
     ), InlineKeyboardButton(
         text=LEXICON_RU['cancel'],
-        callback_data=f'release_{price_rel}'
+        callback_data=f'ordCancel_'
     )
     ]
     inline_markup.row(*buttons, width=1)

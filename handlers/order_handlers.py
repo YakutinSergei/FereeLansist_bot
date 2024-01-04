@@ -31,18 +31,36 @@ async def process_specializations_name(callback: CallbackQuery, state: FSMContex
 '''Создать заказ'''
 @router.message(F.text == LEXICON_RU['add_order'])
 async def process_add_order_location(message: Message, state: FSMContext):
-    await message.answer(text=lx_common_phrases['date_order'], reply_markup=await kb_date_order())
-    await state.set_state(FSMorder_add.date_order)
     current_datetime = str(datetime.now().date())
+    await message.answer(text=lx_common_phrases['date_order'], reply_markup=await kb_date_order(current_datetime))
+    await state.set_state(FSMorder_add.date_order)
+    print(current_datetime)
     await state.update_data(date_order=current_datetime)  # Обновляем FSM
     await state.set_state(FSMorder_add.location)
 
 
+'''выбор числа'''
+@router.callback_query(F.data.startswith('current_'))
+async def process_date_order(callback: CallbackQuery, state: FSMContext):
+    date_chance = callback.data.split('_')[1]
+    if date_chance == 'day':
+        print('День')
+    elif date_chance == 'month':
+        print('Месяц')
+    else:
+        print('Год')
+
+    await callback.answer()
+
+
+@router.callback_query()
+async def process_date_order(callback: CallbackQuery, state: FSMContext):
+    print(callback.data)
 
 '''После ввода место проведения работ'''
 @router.message(StateFilter(FSMorder_add.location))
 async def process_add_order_location(message: Message, state: FSMContext):
-
+    pass
 
 
 
