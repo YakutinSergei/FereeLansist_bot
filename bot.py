@@ -8,7 +8,7 @@ from create_bot import bot, dp
 from environs import Env
 
 from database import model
-from handlers import start_handlers
+from handlers import start_handlers, order_handlers
 
 env = Env()
 env.read_env()
@@ -48,6 +48,7 @@ async def main():
     await model.db_connect()
 
     # Регистриуем роутеры в диспетчере
+    dp.include_router(order_handlers.router)
     dp.include_router(start_handlers.router)
     # dp.include_router(no_group_handlers.router)
 
