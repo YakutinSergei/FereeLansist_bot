@@ -46,6 +46,7 @@ async def db_connect():
         id_user - номер пользователя по порядку
         tg_id - id телеграмм
         name - Имя и фамилия
+        number_workers - Количество рабочих
         id_status - статут из таблицы статусов
         rating - рейтинг исполнителя по умолчанию 50
         id_specialization - номер специализации
@@ -53,6 +54,7 @@ async def db_connect():
         await conn.execute('''CREATE TABLE IF NOT EXISTS performers(id_user SERIAL NOT NULL PRIMARY KEY,
                                                                     tg_id BIGSERIAL,
                                                                     name TEXT,
+                                                                    number_workers INTEGER DEFAULT '1', 
                                                                     id_status INTEGER REFERENCES statuses(id_status) NOT NULL,
                                                                     rating INTEGER DEFAULT '50',
                                                                     id_specialization INTEGER REFERENCES specializations(id_specialization) NOT NULL);''')
@@ -98,18 +100,17 @@ async def db_connect():
                                                                             checked INTEGER DEFAULT '0');''')
 
         '''Добавление в таблицу'''
-        await conn.execute(f'''INSERT INTO specializations(name)
-                                      VALUES('📦Грузчик'),
-                                            ('🔌Электрик'),
-                                            ('🚽Сантехник'),
-                                            ('🖥️Ит-специалист'),
-                                            ('🪠Уборщик')
-                            ''')
-
-        await conn.execute(f'''INSERT INTO statuses(name)
-                                      VALUES('🔍В поиске работы'),
-                                            ('⏳Не беспокоить')
-                            ''')
+        # await conn.execute(f'''INSERT INTO specializations(name)
+        #                               VALUES('🔌Монтажник'),
+        #                                     ('👷🏼‍♂️Рабочий'),
+        #                                     ('📺Экранщик'),
+        #                                     ('🎉Декоратор')
+        #                     ''')
+        #
+        # await conn.execute(f'''INSERT INTO statuses(name)
+        #                               VALUES('🔍В поиске работы'),
+        #                                     ('⏳Не беспокоить')
+        #                     ''')
 
 
     except Exception as _ex:

@@ -1,12 +1,15 @@
+from datetime import timedelta, datetime
+
 from aiogram import Router, F
 from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, CallbackQuery
 
-from bot_menu.menu import create_inline_kb, menu_performer, menu_customer
+from bot_menu.menu import create_inline_kb, menu_performer, menu_customer, my_order
+from create_bot import bot
 from database.orm import bd_get_user_status, bd_add_performer, get_user_profile, bd_add_customer, \
-    get_user_profile_customer
+    get_user_profile_customer, bd_get_order, get_order_info
 from lexicon.lex_ru import lx_common_phrases, LEXICON_RU
 
 router: Router = Router()
@@ -108,9 +111,7 @@ async def process_executor_name(message: Message, state: FSMContext):
                                                                  LEXICON_RU['porter'],
                                                                  LEXICON_RU['electrician'],
                                                                  LEXICON_RU['plumber'],
-                                                                 LEXICON_RU['it-professional'],
-                                                                 LEXICON_RU['cleaner'],
-                                                                 LEXICON_RU['cancel']
+                                                                 LEXICON_RU['it-professional']
                                                                  ))
         await state.set_state(FSMperformer_add.specialization)
     else:
@@ -170,3 +171,83 @@ async def process_specializations_name(callback: CallbackQuery, state: FSMContex
 
 
 
+# Кнопка мои заказы
+@router.message(F.text == LEXICON_RU['my_orders'])
+async def process_my_order(message: Message):
+    print('nen')
+# Проверяем есть ли такой пользователь
+    # 0 - нет 1 - исполнитель 2 - заказчик
+    user_status = await bd_get_user_status(tg_id=message.from_user.id)
+    if user_status == 1:
+        pass
+    elif user_status == 2:
+        customer_order = await bd_get_order(tg_id=message.from_user.id)
+        await message.answer(text=lx_common_phrases['my_order'],
+                             reply_markup=await my_order(N=0,
+                                                          role='customerOrder',
+                                                          orders=customer_order
+                                                          ))
+
+'''Листание моих заказов'''
+@router.callback_query(F.data.startswith('myOrder_'))
+async def paging_order(callback: CallbackQuery):
+    user_status = await bd_get_user_status(tg_id=callback.from_user.id)
+    if user_status == 1:
+        pass
+    elif user_status == 2:
+        action = callback.data.split('_')[-1]
+        #Если нажата кнопка вперед
+        if action == 'forward':
+            N = int(callback.data.split('_')[1])
+            customer_order = await bd_get_order(tg_id=callback.from_user.id)
+            if N < len(customer_order):
+                await callback.message.edit_reply_markup(reply_markup=await my_order(N=N,
+                                                                                     role='customerOrder',
+                                                                                     orders=customer_order
+                                                                                     ))
+        elif action == 'backward':
+            N = int(callback.data.split('_')[1])
+            customer_order = await bd_get_order(tg_id=callback.from_user.id)
+            if N - 8 > 0:
+                if N < 16:
+                    N = N - 15
+                else:
+                    N = (((N) // 8) * 8) - 16
+                await callback.message.edit_reply_markup(reply_markup=await my_order(N=N,
+                                                                                     role='customerOrder',
+                                                                                     orders=customer_order
+                                                                                     ))
+    await callback.answer()
+
+'''Информация о заказе, заказчик'''
+@router.callback_query(F.data.startswith('customerOrder'))
+async def info_order_customer(callback: CallbackQuery):
+    id_order = int(callback.data.split('_')[-1])
+    order = await get_order_info(id_order)
+    print(order)
+    print(order['date_of_creation'])
+    if (datetime.now() - (order['date_of_creation'] + timedelta(hours=3))) > timedelta(hours=3):
+        status = lx_common_phrases['my_order_activ']
+    else:
+        status = lx_common_phrases['status_order_search']
+
+    text = (f"<b>Номер заказа:</b> {id_order}\n"
+            f"<b>📍Место:</b> {order['place']}\n"
+            f"<b>📆Дата и время</b>: {order['date_completion']} г. {order['time_completion']}\n"
+            f"<b>💰Цена</b>: {order['price']}\n"
+            f"<b>📝Описание работ</b>: {order['description']}\n"
+            f"<b>🔢Количество рабочих</b>: {order['num_of_performers']}\n\n"
+            f"<b>Статус заказа</b>: {status}")
+    await callback.message.answer(text=text, reply_markup=await create_inline_kb(1,
+                                                                                f'stOrder_{id_order}_',
+                                                                                 LEXICON_RU['сompleted'],
+                                                                                 LEXICON_RU['cancel']
+                                  ))
+    await callback.answer()
+
+
+'''Отмена выполнения задания'''
+
+
+
+'''Кнопка заказ выполнен'''

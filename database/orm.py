@@ -7,7 +7,7 @@ from environs import Env
 env = Env()
 env.read_env()
 
-
+#Получение статуса юзера
 async def bd_get_user_status(tg_id: int) -> int:
     try:
         conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
@@ -127,6 +127,172 @@ async def get_user_profile_customer(tg_id:int):
     ''')
 
         return  user
+    except Exception as _ex:
+        print('[INFO] Error ', _ex)
+
+    finally:
+        if conn:
+            await conn.close()
+            print('[INFO] PostgresSQL closed')
+
+
+'''Получение всех специальностей'''
+async def get_specializations_db():
+    try:
+        conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
+                                     host=env('host'))
+
+        specializations = await conn.fetch(f'''
+                                                SELECT name
+                                                FROM specializations
+''')
+
+        return specializations
+
+    except Exception as _ex:
+        print('[INFO] Error ', _ex)
+
+    finally:
+        if conn:
+            await conn.close()
+            print('[INFO] PostgresSQL closed')
+
+
+'''Записываем данные заказа в базу данных'''
+async def bd_post_order_user(order, tg_id:int):
+    try:
+        conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
+                                     host=env('host'))
+
+        num_order = await conn.fetchrow(f'''INSERT INTO orders(id_user, 
+                                                  place, 
+                                                  price, 
+                                                  date_of_creation, 
+                                                  date_completion, 
+                                                  time_completion, 
+                                                  num_of_performers, 
+                                                  id_specialization, 
+                                                  description)
+                                          VALUES((SELECT id_user
+                                                  FROM customers
+                                                  WHERE tg_id = $1), 
+                                                  $2, 
+                                                  $3, 
+                                                  $4,
+                                                  $5,
+                                                  $6,
+                                                  $7,
+                                                  (SELECT id_specialization
+                                                  FROM specializations
+                                                  WHERE name = $8),
+                                                  $9) 
+                                          RETURNING id_order''',
+                           tg_id,
+                           order['location'],
+                           int(order['price_order']),
+                           datetime.now(),
+                           datetime.strptime(order['date_order'], '%Y-%m-%d').date(),
+                           datetime.strptime(order['time_order'], '%H:%M').time(),
+                           int(order['count_workers_order']),
+                           order['specializations_order'],
+                           order['desc_order']
+                           )
+
+        user_orders = await conn.fetch(f'''
+                                        SELECT tg_id
+                                        FROM performers
+                                        WHERE id_specialization = (SELECT id_specialization
+                                                                  FROM specializations
+                                                                  WHERE name = '{order['specializations_order']}'
+                                                                  )
+''')
+
+        return user_orders, num_order
+
+    except Exception as _ex:
+        print('[INFO] Error ', _ex)
+
+    finally:
+        if conn:
+            await conn.close()
+            print('[INFO] PostgresSQL closed')
+
+
+'''Добавление заказа к исполнителю'''
+async def bd_add_user_order(tg_id: int,
+                            id_order: int):
+    try:
+        conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
+                                     host=env('host'))
+
+        await conn.execute(f'''INSERT INTO executors_orders(id_user, id_order)
+                                                      VALUES((SELECT id_user
+                                                              FROM performers 
+                                                              WHERE tg_id = $1), $2)''',
+                           tg_id, id_order)
+
+    except Exception as _ex:
+        print('[INFO] Error ', _ex)
+
+    finally:
+        if conn:
+            await conn.close()
+            print('[INFO] PostgresSQL closed')
+
+
+
+'''Получение всех заказов заказчика'''
+async def bd_get_order(tg_id:int):
+    try:
+        conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
+                                     host=env('host'))
+
+        user_orders = await conn.fetch(f'''
+                                           SELECT id_order
+                                           FROM orders
+                                           WHERE id_user = (SELECT id_user
+                                                             FROM customers
+                                                             WHERE tg_id = '{tg_id}'
+                                                             )
+                                           ORDER BY id_order
+       ''')
+
+        return user_orders
+
+
+    except Exception as _ex:
+        print('[INFO] Error ', _ex)
+
+    finally:
+        if conn:
+            await conn.close()
+            print('[INFO] PostgresSQL closed')
+
+
+'''получаем данные о заказе'''
+async def get_order_info(id_order:int):
+    try:
+        conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
+                                     host=env('host'))
+
+        orders = await conn.fetchrow(f'''
+                                       SELECT o.place, 
+                                              o.price, 
+                                              o.date_of_creation, 
+                                              o.date_completion,
+                                              o.time_completion,
+                                              o.num_of_performers,
+                                              s.name,
+                                              o.description,
+                                              o.checked
+                                       FROM orders o
+                                       JOIN specializations s ON s.id_specialization = o.id_specialization
+                                       WHERE id_order = {id_order} AND checked = 0
+       ''')
+
+        return orders
+
+
     except Exception as _ex:
         print('[INFO] Error ', _ex)
 
