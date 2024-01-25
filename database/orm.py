@@ -254,6 +254,7 @@ async def bd_get_order(tg_id:int):
                                                              FROM customers
                                                              WHERE tg_id = '{tg_id}'
                                                              )
+                                           AND checked = 0
                                            ORDER BY id_order
        ''')
 
@@ -291,6 +292,68 @@ async def get_order_info(id_order:int):
        ''')
 
         return orders
+
+
+    except Exception as _ex:
+        print('[INFO] Error ', _ex)
+
+    finally:
+        if conn:
+            await conn.close()
+            print('[INFO] PostgresSQL closed')
+
+
+
+'''ПОлучаем всех исполнителей заказа'''
+async def get_users_order(id_order:int):
+    try:
+        conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
+                                     host=env('host'))
+
+        #Ставим отметку, что заказ выполнен
+        await conn.execute(f'''UPDATE orders
+                            SET checked = 1 
+                            WHERE id_order = {id_order}''')
+
+
+        # Получаем всех исполнителей
+        users = await conn.fetch(f'''
+                                   SELECT p.name, p.id_user
+                                   FROM performers p
+                                   JOIN executors_orders e ON p.id_user = p.id_user
+                                   JOIN executors_orders eo ON eo.id_order = p.id_order
+                                   WHERE e.id_order = {id_order} AND e.checked = 0 AND eo.checked = 0
+               ''')
+
+        return users
+
+
+    except Exception as _ex:
+        print('[INFO] Error ', _ex)
+
+    finally:
+        if conn:
+            await conn.close()
+            print('[INFO] PostgresSQL closed')
+
+
+'''Оценка исполнителей'''
+async def get_user_completed(id_user, id_order, N):
+    try:
+        conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
+                                     host=env('host'))
+
+        # Ставим отметку, что заказ выполнен
+        await conn.execute(f'''UPDATE orders
+                                    SET checked = 1 
+                                    WHERE id_order = {id_order}
+                                    AND id_user = {id_user}''')
+
+        # Обновляем рейтинг
+        await conn.execute(f'''UPDATE performers
+                               SET rating = rating + {N} 
+                               WHERE id_user = {id_user}''')
+
 
 
     except Exception as _ex:

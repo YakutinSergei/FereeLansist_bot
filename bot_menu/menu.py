@@ -4,7 +4,7 @@ from aiogram.utils.deep_linking import create_start_link
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from datetime import datetime
 
-from lexicon.lex_ru import LEXICON_RU, PAGE
+from lexicon.lex_ru import LEXICON_RU, PAGE, lx_common_phrases
 
 '''генератор клавиатур'''
 
@@ -303,6 +303,31 @@ async def my_order(N:int, role, orders):
 
     # Возвращаем объект инлайн-клавиатуры
     return kb_builder.as_markup()
+
+'''Клавиатура на оценку исполнителей после выполненного заказа'''
+async def kb_user_score(users_order, id_order):
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    buttons: list[InlineKeyboardButton] = []
+
+    for user in users_order:
+        print(user)
+        buttons: list[InlineKeyboardButton] = [InlineKeyboardButton(
+            text=lx_common_phrases['downgrade_the_rating'],
+            callback_data=f'downgrade_{user["id_user"]}_{id_order}'
+        ), InlineKeyboardButton(
+            text=user["name"],
+            callback_data='None'
+        ), InlineKeyboardButton(
+            text=lx_common_phrases['increase_the_rating'],
+            callback_data=f'increase_{user["id_user"]}_{id_order}'
+        )
+        ]
+
+    kb_builder.row(*buttons, width=3)
+
+    # Возвращаем объект инлайн-клавиатуры
+    return kb_builder.as_markup()
+
 
 '''Обычная клавиатура на исполнителя'''
 menu_performer: ReplyKeyboardBuilder = ReplyKeyboardBuilder()

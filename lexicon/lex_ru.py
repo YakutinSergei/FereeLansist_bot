@@ -32,6 +32,8 @@ lx_common_phrases: dict[str, str] = {
     'my_order': '⬇️Выши заказы⬇️',
     'status_order_search': '🔎В поиске исполнителей',
     'my_order_activ': '✅Активен',
+    'downgrade_the_rating': '👎🏻',
+    'increase_the_rating': '👍🏻',
 
 }
 

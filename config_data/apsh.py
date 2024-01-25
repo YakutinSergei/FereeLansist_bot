@@ -21,17 +21,20 @@ async def choice_of_performers(id_order, tg_id):
 
 
         #Получаем всех исполнителей по заказу
-        users_order = await conn.fetch(f'''SELECT p.id_user, p.number_workers, tg_id
+        users_order = await conn.fetch(f'''SELECT p.id_user, p.number_workers, p.tg_id
                                                 FROM performers p
                                                 JOIN executors_orders eo ON p.id_user = eo.id_user
                                                 WHERE eo.id_order = {id_order}
                                                 ORDER BY p.rating DESC;''')
+
 
         # Получаем данные о заказе
         order = await conn.fetchrow(f'''SELECT o.num_of_performers, c.tg_id
                                         FROM orders o
                                         JOIN customers c ON o.id_user = c.id_user
                                         WHERE o.id_order = {id_order};''')
+
+        print(order)
 
         # Проверяем есть ли исполнители заказа
         if users_order: # Если есть
@@ -115,6 +118,24 @@ async def choice_of_performers(id_order, tg_id):
                 print('Ошибка, пользователь заблокировал Вас')
 
 
+    except Exception as _ex:
+        print('[INFO] Error ', _ex)
+
+    finally:
+        if conn:
+            await conn.close()
+            print('[INFO] PostgresSQL closed')
+
+
+'''Делаем всем исполнителям что заказ выполнен'''
+async def completed_user_order(id_order):
+    try:
+        conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
+                                     host=env('host'))
+        # Ставим отметку, что заказ выполнен
+        await conn.execute(f'''UPDATE executors_orders
+                                    SET checked = 1 
+                                    WHERE id_order = {id_order}''')
     except Exception as _ex:
         print('[INFO] Error ', _ex)
 

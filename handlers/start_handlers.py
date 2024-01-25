@@ -5,11 +5,13 @@ from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, CallbackQuery
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from bot_menu.menu import create_inline_kb, menu_performer, menu_customer, my_order
+from bot_menu.menu import create_inline_kb, menu_performer, menu_customer, my_order, kb_user_score
+from config_data import apsh
 from create_bot import bot
 from database.orm import bd_get_user_status, bd_add_performer, get_user_profile, bd_add_customer, \
-    get_user_profile_customer, bd_get_order, get_order_info
+    get_user_profile_customer, bd_get_order, get_order_info, get_users_order, get_user_completed
 from lexicon.lex_ru import lx_common_phrases, LEXICON_RU
 
 router: Router = Router()
@@ -224,8 +226,6 @@ async def paging_order(callback: CallbackQuery):
 async def info_order_customer(callback: CallbackQuery):
     id_order = int(callback.data.split('_')[-1])
     order = await get_order_info(id_order)
-    print(order)
-    print(order['date_of_creation'])
     if (datetime.now() - (order['date_of_creation'] + timedelta(hours=3))) > timedelta(hours=3):
         status = lx_common_phrases['my_order_activ']
     else:
@@ -251,3 +251,39 @@ async def info_order_customer(callback: CallbackQuery):
 
 
 '''Кнопка заказ выполнен'''
+@router.callback_query(F.data.endswith(LEXICON_RU['сompleted']))
+async def proces_order_completed(callback: CallbackQuery):
+    id_order = int(callback.data.split('_')[1])
+    #Получаем всех исполнителей
+    users_order = await get_users_order(id_order)
+    if users_order:
+        await bot.edit_message_text(chat_id=callback.from_user.id,
+                                    message_id=callback.message.message_id,
+                                    text='Оцени исполнителей заказа\n\n',
+                                    reply_markup=await kb_user_score(users_order, id_order))
+
+        # Запускаем событие через 3 часа, передаем id_order и записываем всем исполнителям что заказ выполнен
+        scheduler = AsyncIOScheduler(timezone='Europe/Moscow')
+        scheduler.add_job(apsh.completed_user_order, 'date', run_date=datetime.now() + timedelta(seconds=15),
+                          args=(id_order,))
+        scheduler.start()
+
+    await callback.answer()
+
+'''Если поставлен класс'''
+@router.callback_query(F.data.startswith('increase_'))
+async def increase_order_user(callback: CallbackQuery):
+    id_user = int(callback.data.split('_')[1])# ID пользователя
+    id_order = int(callback.data.split('_')[-1])#I D заказа
+    await get_user_completed(id_user=id_user, id_order=id_order, N=-5)
+    users_order = await get_users_order(id_order)
+    print(users_order)
+    if users_order:
+        await bot.edit_message_text(chat_id=callback.from_user.id,
+                                    message_id=callback.message.message_id,
+                                    text='Оцени исполнителей заказа\n\n',
+                                    reply_markup=await kb_user_score(users_order, id_order))
+    else:
+        await bot.delete_message(chat_id=callback.from_user.id,
+                                 message_id=callback.message.message_id)
+    await callback.answer()
