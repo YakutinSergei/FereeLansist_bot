@@ -18,7 +18,7 @@ from lexicon.lex_ru import lx_common_phrases, LEXICON_RU
 
 router: Router = Router()
 
-#Реакция на новый заказ
+#Реакция на новый заказ исполнителем
 @router.callback_query(F.data.startswith('senOrder_'))
 async def process_choice_order_executor(callback: CallbackQuery):
     if callback.data.split('_')[-1] == lx_common_phrases['reject_order']: # Если нажал отклонить

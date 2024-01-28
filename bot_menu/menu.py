@@ -313,13 +313,13 @@ async def kb_user_score(users_order, id_order):
         print(user)
         buttons: list[InlineKeyboardButton] = [InlineKeyboardButton(
             text=lx_common_phrases['downgrade_the_rating'],
-            callback_data=f'downgrade_{user["id_user"]}_{id_order}'
+            callback_data=f'estimation_-5_{user["id_user"]}_{id_order}'
         ), InlineKeyboardButton(
             text=user["name"],
             callback_data='None'
         ), InlineKeyboardButton(
             text=lx_common_phrases['increase_the_rating'],
-            callback_data=f'increase_{user["id_user"]}_{id_order}'
+            callback_data=f'estimation_5_{user["id_user"]}_{id_order}'
         )
         ]
 

@@ -34,7 +34,7 @@ async def choice_of_performers(id_order, tg_id):
                                         JOIN customers c ON o.id_user = c.id_user
                                         WHERE o.id_order = {id_order};''')
 
-        print(order)
+
 
         # Проверяем есть ли исполнители заказа
         if users_order: # Если есть
@@ -77,17 +77,12 @@ async def choice_of_performers(id_order, tg_id):
             # Записываем в базу данных исполнителей
             for item in selected_items:
                 # Записываем в базу данных исполнителей
-                await conn.execute(f"UPDATE users "
+                await conn.execute(f"UPDATE executors_orders "
                                    f"SET selected = 1 "
-                                   f"WHERE id_user = (SELECT id_user"
-                                   f"FROM performers"
-                                   f"WHERE tg_id = {int(item[0])})")
-                
-            #Отправляем сообщения всем исполнителям
-            for item in selected_items:
+                                   f"WHERE id_user = (SELECT id_user "
+                                                    f"FROM performers "
+                                                    f"WHERE tg_id = {int(item[0])})")
                 try:
-
-
                     #Отправляем сообщения
                     await bot.send_message(chat_id=int(item[0]),
                                            text=f'Вас выбрали исполнителем заказа <b><i>№{id_order}</i></b>',

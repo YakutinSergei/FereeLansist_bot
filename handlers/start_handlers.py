@@ -181,9 +181,10 @@ async def process_my_order(message: Message):
     # 0 - нет 1 - исполнитель 2 - заказчик
     user_status = await bd_get_user_status(tg_id=message.from_user.id)
     if user_status == 1:
-        pass
+        orders_user = await bd_get_orders_user(tg_id=message.from_user.id)
+
     elif user_status == 2:
-        customer_order = await bd_get_order(tg_id=message.from_user.id)
+        customer_order = await bd_get_order(tg_id=message.from_user.id) # Получаем заказы со стороны заказчика
         await message.answer(text=lx_common_phrases['my_order'],
                              reply_markup=await my_order(N=0,
                                                           role='customerOrder',
@@ -222,7 +223,7 @@ async def paging_order(callback: CallbackQuery):
     await callback.answer()
 
 '''Информация о заказе, заказчик'''
-@router.callback_query(F.data.startswith('customerOrder'))
+@router.callback_query(F.data.startswith('customerOrder_'))
 async def info_order_customer(callback: CallbackQuery):
     id_order = int(callback.data.split('_')[-1])
     order = await get_order_info(id_order)
@@ -244,9 +245,6 @@ async def info_order_customer(callback: CallbackQuery):
                                                                                  LEXICON_RU['cancel']
                                   ))
     await callback.answer()
-
-
-'''Отмена выполнения задания'''
 
 
 
@@ -271,13 +269,13 @@ async def proces_order_completed(callback: CallbackQuery):
     await callback.answer()
 
 '''Если поставлен класс'''
-@router.callback_query(F.data.startswith('increase_'))
+@router.callback_query(F.data.startswith('estimatio_'))
 async def increase_order_user(callback: CallbackQuery):
-    id_user = int(callback.data.split('_')[1])# ID пользователя
+    id_user = int(callback.data.split('_')[2])# ID пользователя
     id_order = int(callback.data.split('_')[-1])#I D заказа
-    await get_user_completed(id_user=id_user, id_order=id_order, N=-5)
+    N = int(callback.data.split('_')[1]) # Рейтинг
+    await get_user_completed(id_user=id_user, id_order=id_order, N=N)
     users_order = await get_users_order(id_order)
-    print(users_order)
     if users_order:
         await bot.edit_message_text(chat_id=callback.from_user.id,
                                     message_id=callback.message.message_id,

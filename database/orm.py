@@ -320,8 +320,8 @@ async def get_users_order(id_order:int):
         users = await conn.fetch(f'''
                                    SELECT p.name, p.id_user
                                    FROM performers p
-                                   JOIN executors_orders e ON p.id_user = p.id_user
-                                   JOIN executors_orders eo ON eo.id_order = p.id_order
+                                   JOIN executors_orders e ON p.id_user = e.id_user
+                                   JOIN executors_orders eo ON eo.id_order = e.id_order
                                    WHERE e.id_order = {id_order} AND e.checked = 0 AND eo.checked = 0
                ''')
 
@@ -344,7 +344,7 @@ async def get_user_completed(id_user, id_order, N):
                                      host=env('host'))
 
         # Ставим отметку, что заказ выполнен
-        await conn.execute(f'''UPDATE orders
+        await conn.execute(f'''UPDATE executors_orders
                                     SET checked = 1 
                                     WHERE id_order = {id_order}
                                     AND id_user = {id_user}''')
