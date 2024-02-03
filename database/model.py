@@ -91,11 +91,11 @@ async def db_connect():
         Таблица заказов исполнителей executors_orders
         id_user - номер исполнителя из таблицы performers
         id_order - номер заказа из таблицы orders
-        selected - выбран ли в качестве исполнителя
-        checked - выполнен ли заказ        
+        selected - выбран ли в качестве исполнителя  0 - в поиске 1 - выбран 2 - не выбран
+        checked - выполнен ли заказ         
         '''
         await conn.execute('''CREATE TABLE IF NOT EXISTS executors_orders(id_user INTEGER REFERENCES performers(id_user) NOT NULL,
-                                                                            id_order INTEGER REFERENCES orders(id_order) NOT NULL,
+                                                                            id_order UR
                                                                             selected INTEGER DEFAULT '0',
                                                                             checked INTEGER DEFAULT '0');''')
 

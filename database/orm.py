@@ -43,11 +43,11 @@ async def bd_add_performer(tg_id, performer):
         conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
                                  host=env('host'))
 
-        await conn.execute(f'''INSERT INTO performers(tg_id, name, id_status, id_specialization)
+        await conn.execute(f'''INSERT INTO performers(tg_id, name, id_status, id_specialization, number_workers)
                                       VALUES($1, $2, 1, (SELECT id_specialization
                                                       FROM specializations
-                                                      WHERE name = '{performer['specialization']}'))''',
-                           tg_id, performer['name'])
+                                                      WHERE name = '{performer['specialization']}'), $3)''',
+                           tg_id, performer['name'], int(performer['count']))
 
 
     except Exception as _ex:
@@ -356,6 +356,32 @@ async def get_user_completed(id_user, id_order, N):
 
 
 
+    except Exception as _ex:
+        print('[INFO] Error ', _ex)
+
+    finally:
+        if conn:
+            await conn.close()
+            print('[INFO] PostgresSQL closed')
+
+
+'''Заказы пользователя'''
+async def bd_get_orders_user(tg_id):
+    try:
+        conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
+                                     host=env('host'))
+
+        orders = await conn.fetch(f'''
+                                   SELECT id_order
+                                   FROM executors_orders
+                                   WHERE id_user = (SELECT id_user
+                                                    FROM performers
+                                                    WHERE tg_id = {tg_id}) 
+                                   AND checked = 0
+                                   AND checked < 2
+               ''')
+
+        return orders
     except Exception as _ex:
         print('[INFO] Error ', _ex)
 

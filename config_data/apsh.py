@@ -43,6 +43,12 @@ async def choice_of_performers(id_order, tg_id):
             selected_items = [] # Выбранный
             target_sum = order['num_of_performers'] # Сколько надо нам рабочих
 
+
+            #Ставим отметку что они не были выбраны, для дальнейшей информации
+            await conn.execute(f"UPDATE executors_orders "
+                               f"SET selected = 2 "
+                               f"WHERE id_order = {id_order})")
+
             if len(users_order) <=1:
                 selected_users.update({users_order[0]['tg_id']: users_order[0]['number_workers']})
                 for key, value in selected_users.items():

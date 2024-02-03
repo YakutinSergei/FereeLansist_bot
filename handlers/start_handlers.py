@@ -11,7 +11,7 @@ from bot_menu.menu import create_inline_kb, menu_performer, menu_customer, my_or
 from config_data import apsh
 from create_bot import bot
 from database.orm import bd_get_user_status, bd_add_performer, get_user_profile, bd_add_customer, \
-    get_user_profile_customer, bd_get_order, get_order_info, get_users_order, get_user_completed
+    get_user_profile_customer, bd_get_order, get_order_info, get_users_order, get_user_completed, bd_get_orders_user
 from lexicon.lex_ru import lx_common_phrases, LEXICON_RU
 
 router: Router = Router()
@@ -20,6 +20,7 @@ router: Router = Router()
 class FSMperformer_add(StatesGroup):
     name = State()
     specialization = State()
+    count = State()
 
 #FSM для заказчика
 class FSMcustomer_add(StatesGroup):
@@ -107,6 +108,21 @@ async def process_executor_name(message: Message, state: FSMContext):
 
     if user_status == 0:
         await state.update_data(name=message.text)
+        await message.answer(text='Введите количество рабочих\n',
+                             reply_markup=await create_inline_kb(1,
+                                                                 'ordCancel_',
+                                                                 LEXICON_RU['cancel']))
+        await state.set_state(FSMperformer_add.count)
+    else:
+        await message.answer(text='‼️Вы уже зарегистрированы в приложении ‼️', show_alert=True)
+
+
+'''Ввод количества рабочих'''
+#count
+@router.message(StateFilter(FSMperformer_add.count))
+async def process_count_name(message: Message, state: FSMContext):
+    if message.text.isdigit():
+        await state.update_data(count=message.text)  # Обновляем FSM, записываем количество рабочих
         await message.answer(text=lx_common_phrases['choice_specializations'],
                              reply_markup=await create_inline_kb(1,
                                                                  'chSpec_',
@@ -117,7 +133,8 @@ async def process_executor_name(message: Message, state: FSMContext):
                                                                  ))
         await state.set_state(FSMperformer_add.specialization)
     else:
-        await message.answer(text='‼️Вы уже зарегистрированы в приложении ‼️', show_alert=True)
+        await message.answer(text='Вы ввели не число, попробуйте еще раз')
+
 
 # Ввод имени и фамилии Заказчика
 @router.message(StateFilter(FSMcustomer_add.name))
@@ -176,29 +193,60 @@ async def process_specializations_name(callback: CallbackQuery, state: FSMContex
 # Кнопка мои заказы
 @router.message(F.text == LEXICON_RU['my_orders'])
 async def process_my_order(message: Message):
-    print('nen')
 # Проверяем есть ли такой пользователь
     # 0 - нет 1 - исполнитель 2 - заказчик
     user_status = await bd_get_user_status(tg_id=message.from_user.id)
+
     if user_status == 1:
+        #Получаем заказы пользователя
         orders_user = await bd_get_orders_user(tg_id=message.from_user.id)
+        if orders_user:
+            await message.answer(text=lx_common_phrases['my_order'],
+                                 reply_markup=await my_order(N=0,
+                                                             role='executorOrder',
+                                                             orders=orders_user
+                                                             ))
+        else:
+            await message.answer(text='У вас нет заказов')
 
     elif user_status == 2:
         customer_order = await bd_get_order(tg_id=message.from_user.id) # Получаем заказы со стороны заказчика
-        await message.answer(text=lx_common_phrases['my_order'],
-                             reply_markup=await my_order(N=0,
-                                                          role='customerOrder',
-                                                          orders=customer_order
-                                                          ))
+        if customer_order:
+            await message.answer(text=lx_common_phrases['my_order'],
+                                 reply_markup=await my_order(N=0,
+                                                              role='customerOrder',
+                                                              orders=customer_order
+                                                              ))
+        else:
+            await message.answer(text='У вас нет заказов')
 
-'''Листание моих заказов'''
+'''Листание моих заказов со стороны заказчика'''
 @router.callback_query(F.data.startswith('myOrder_'))
 async def paging_order(callback: CallbackQuery):
     user_status = await bd_get_user_status(tg_id=callback.from_user.id)
+    action = callback.data.split('_')[-1]
     if user_status == 1:
-        pass
+        if action == 'forward':
+            N = int(callback.data.split('_')[1])
+            orders_user = await bd_get_orders_user(tg_id=callback.from_user.id)
+            await callback.message.edit_reply_markup(reply_markup=await my_order(N=N,
+                                                                                 role='executorOrder',
+                                                                                 orders=orders_user
+                                                                                 ))
+        elif action == 'backward':
+            N = int(callback.data.split('_')[1])
+            orders_user = await bd_get_orders_user(tg_id=callback.from_user.id)
+            if N - 8 > 0:
+                if N < 16:
+                    N = N - 15
+                else:
+                    N = (((N) // 8) * 8) - 16
+                await callback.message.edit_reply_markup(reply_markup=await my_order(N=N,
+                                                                                     role='executorOrder',
+                                                                                     orders=orders_user
+                                                                                     ))
     elif user_status == 2:
-        action = callback.data.split('_')[-1]
+
         #Если нажата кнопка вперед
         if action == 'forward':
             N = int(callback.data.split('_')[1])
@@ -246,7 +294,26 @@ async def info_order_customer(callback: CallbackQuery):
                                   ))
     await callback.answer()
 
+'''Информация о заказе, исполнитель'''
+@router.callback_query(F.data.startswith('executorOrder_'))
+async def info_order_customer(callback: CallbackQuery):
+    id_order = int(callback.data.split('_')[-1])
+    order = await get_order_info(id_order)
+    if (datetime.now() - (order['date_of_creation'] + timedelta(hours=3))) > timedelta(hours=3):
+        status = lx_common_phrases['my_order_activ']
+    else:
+        status = lx_common_phrases['status_order_search']
 
+    text = (f"<b>Номер заказа:</b> {id_order}\n"
+            f"<b>📍Место:</b> {order['place']}\n"
+            f"<b>📆Дата и время</b>: {order['date_completion']} г. {order['time_completion']}\n"
+            f"<b>💰Цена</b>: {order['price']}\n"
+            f"<b>📝Описание работ</b>: {order['description']}\n"
+            f"<b>Статус заказа</b>: {status}")
+    await callback.message.answer(text=text, reply_markup=await create_inline_kb(1,
+                                                                                 f'exOrder_{id_order}_',
+                                                                                 LEXICON_RU['сompleted']))
+    await callback.answer()
 
 '''Кнопка заказ выполнен'''
 @router.callback_query(F.data.endswith(LEXICON_RU['сompleted']))
@@ -260,7 +327,7 @@ async def proces_order_completed(callback: CallbackQuery):
                                     text='Оцени исполнителей заказа\n\n',
                                     reply_markup=await kb_user_score(users_order, id_order))
 
-        # Запускаем событие через 3 часа, передаем id_order и записываем всем исполнителям что заказ выполнен
+        # Запускаем событие через 3 часа, передаем id_order и записываем всем исполнителям, что заказ выполнен
         scheduler = AsyncIOScheduler(timezone='Europe/Moscow')
         scheduler.add_job(apsh.completed_user_order, 'date', run_date=datetime.now() + timedelta(seconds=15),
                           args=(id_order,))
