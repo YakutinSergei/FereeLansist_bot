@@ -95,7 +95,7 @@ async def db_connect():
         checked - выполнен ли заказ         
         '''
         await conn.execute('''CREATE TABLE IF NOT EXISTS executors_orders(id_user INTEGER REFERENCES performers(id_user) NOT NULL,
-                                                                            id_order UR
+                                                                            id_order INTEGER REFERENCES orders(id_order) NOT NULL,
                                                                             selected INTEGER DEFAULT '0',
                                                                             checked INTEGER DEFAULT '0');''')
 

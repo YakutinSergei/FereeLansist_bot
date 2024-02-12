@@ -9,10 +9,10 @@ from aiogram.types import Message, CallbackQuery
 from datetime import datetime, timedelta
 
 from bot_menu.menu import kb_date_order, kb_day_order, kb_month_order, \
-    kb_year_order, kb_check_time, kb_check_hours, kb_check_minut, create_inline_kb
+    kb_year_order, kb_check_time, kb_check_hours, kb_check_minut, create_inline_kb, my_order
 from config_data import apsh
 from create_bot import bot
-from database.orm import bd_get_user_status, get_specializations_db, bd_post_order_user
+from database.orm import bd_get_user_status, get_specializations_db, bd_post_order_user, get_orders_user, get_order_info
 from lexicon.lex_ru import lx_common_phrases, LEXICON_RU
 
 
@@ -40,6 +40,8 @@ async def process_specializations_name(callback: CallbackQuery, state: FSMContex
 
 
 '''Создать заказ'''
+
+
 @router.message(F.text == LEXICON_RU['add_order'])
 async def process_add_order_location(message: Message, state: FSMContext):
     user_status = await bd_get_user_status(tg_id=message.from_user.id)
@@ -51,6 +53,8 @@ async def process_add_order_location(message: Message, state: FSMContext):
 
 
 '''выбор даты'''
+
+
 @router.callback_query(F.data.startswith('current_'))
 async def process_date_order(callback: CallbackQuery, state: FSMContext):
     date_chance = callback.data.split('_')[1]
@@ -80,6 +84,8 @@ async def process_date_order(callback: CallbackQuery, state: FSMContext):
 
 
 '''Запись нового числа'''
+
+
 @router.callback_query(F.data.startswith('checkDayOrder_'))
 async def process_day_choice(callback: CallbackQuery, state: FSMContext):
     day_order_new = callback.data.split('_')[-1] # День который выбрал пользователь
@@ -100,15 +106,18 @@ async def process_day_choice(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-
 '''Запись нового месяца'''
+
+
 @router.callback_query(F.data.startswith('checkMonthOrder_'))
 async def process_month_choice(callback: CallbackQuery, state: FSMContext):
-    month_order_new = callback.data.split('_')[-1] # Месяц который выбрал пользователь
+    month_order_new = callback.data.split('_')[-1] #Месяц который выбрал пользователь
     performer = await state.get_data()  # Записывыем данные из FSM
     year_order = str(performer['date_order'].split('-')[0]) # Год
     day_order = str(performer['date_order'].split('-')[2]) # День
+
     '''Проверяем количество дней в месяце если текущий день больше чем количество дней в месяце ставим последний день месяца'''
+
     count_day_month = calendar.monthrange(int(year_order), int(month_order_new))[1]
     if count_day_month < int(day_order):
         day_order = str(count_day_month)
@@ -357,7 +366,7 @@ async def process_add_order_location(message: Message, state: FSMContext):
 
         #Запускаем событие через 3 часа, передаем id_order
         scheduler = AsyncIOScheduler(timezone='Europe/Moscow')
-        scheduler.add_job(apsh.choice_of_performers, 'date', run_date=datetime.now() + timedelta(seconds=15),
+        scheduler.add_job(apsh.choice_of_performers, 'date', run_date=datetime.now() + timedelta(seconds=30),
                           args=(user_order[1]["id_order"],tg_id,))
         scheduler.start()
 
@@ -385,5 +394,59 @@ async def process_add_order_location(message: Message, state: FSMContext):
 
 
 
+'''Поиск заказов исполнителем'''
+@router.message(F.text == LEXICON_RU['search_orders'])
+async def search_orders_performer(message: Message):
+    tg_id =int(message.from_user.id)
+    orders_user = await get_orders_user(tg_id=tg_id) # получаем заказы по специализации исполнителя
+
+    if orders_user:
+        await message.answer(text=lx_common_phrases['my_order'],
+                             reply_markup=await my_order(N=0,
+                                                         role='OrderSearch',
+                                                         orders=orders_user
+                                                         ))
+
+'''Листание и заказы в поиске'''
+@router.callback_query(F.data.startswith('OrderSearch_'))
+async def process_search_order(callback: CallbackQuery):
+    action = callback.data.split('_')[-1]
+    tg_id = callback.from_user.id
+
+    if action == 'backward':# листание назад
+        N = int(callback.data.split('_')[1])
+        if N - 8 > 0:
+            if N < 16:
+                N = N - 15
+            else:
+                N = (((N) // 8) * 8) - 16
+        orders_user = await get_orders_user(tg_id=tg_id)  # получаем заказы по специализации исполнителя
+
+        await callback.message.edit_reply_markup(reply_markup=await my_order(N=N,
+                                                                             role='OrderSearch',
+                                                                             orders=orders_user
+                                                                             ))
+    elif action == 'forward': # листание вперед
+        N = int(callback.data.split('_')[1])
+        orders_user = await get_orders_user(tg_id=tg_id)  # получаем заказы по специализации исполнителя
+
+        await callback.message.edit_reply_markup(reply_markup=await my_order(N=N,
+                                                         role='OrderSearch',
+                                                         orders=orders_user
+                                                         ))
+    elif action.isdigit(): # информация о заказе
+        id_order = int(callback.data.split('_')[-1])
+        order = await get_order_info(id_order)
+        await callback.message.answer(text=f"<b>Номер заказа:</b> {id_order}"
+                                                f"<b>📍Место:</b> {order['place']}\n"
+                                                f"<b>📆Дата и время</b>: {order['date_completion']} г. {order['time_completion']}\n"
+                                                f"<b>💰Цена</b>: {order['price']}\n"
+                                                f"<b>📝Описание работ</b>: {order['description']}\n"
+                                                f"<b>🔢Количество рабочих</b>: {order['num_of_performers']}\n",
+                                           reply_markup=await create_inline_kb(2,
+                                                                               f'senOrder_{id_order}_',
+                                                                               lx_common_phrases['accept_order'],
+                                                                               lx_common_phrases['reject_order']))
+    await callback.answer()
 
 

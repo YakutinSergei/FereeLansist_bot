@@ -389,3 +389,33 @@ async def bd_get_orders_user(tg_id):
         if conn:
             await conn.close()
             print('[INFO] PostgresSQL closed')
+
+
+'''Получение заказов для поиска'''
+
+
+async def get_orders_user(tg_id: int):
+    try:
+        conn = await asyncpg.connect(user=env('user'), password=env('password'), database=env('db_name'),
+                                     host=env('host'))
+
+
+        orders = await conn.fetch(f'''
+                                      SELECT id_order
+                                      FROM orders
+                                      WHERE checked = 0
+                                      AND id_specialization = (SELECT id_specialization
+                                                               FROM performers
+                                                               WHERE tg_id = {tg_id})
+                                      AND EXTRACT(EPOCH FROM NOW() - date_of_creation) / 3600 < 3
+                                      ORDER BY id_order;
+                  ''')
+
+        return orders
+    except Exception as _ex:
+        print('[INFO] Error ', _ex)
+
+    finally:
+        if conn:
+            await conn.close()
+            print('[INFO] PostgresSQL closed')

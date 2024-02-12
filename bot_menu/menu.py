@@ -304,6 +304,50 @@ async def my_order(N:int, role, orders):
     # Возвращаем объект инлайн-клавиатуры
     return kb_builder.as_markup()
 
+
+'''Клавиатура на поиск заказов'''
+
+async def order(N:int, role, orders):
+    names = []
+    if N % 8 == 0:
+        pg = (N + 8) // 8
+    else:
+        pg = ((N + 8) // 8) + 1
+
+    if len(orders) % 8 == 0:
+        pg_max = len(orders) // 8
+    else:
+        pg_max = len(orders) // 8 + 1
+
+    if N + 8 < len(orders):
+        N_max = N + 8
+    else:
+        N_max = len(orders)
+
+    for i in range(N, N_max):
+        names.append(f"{orders[i]['id_order']}")
+
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    for name in names:
+        kb_builder.row(InlineKeyboardButton(
+            text=f'Заказ № {name}',
+            callback_data=f'{role}_{name}'))
+
+    kb_builder.row(InlineKeyboardButton(
+        text=PAGE['backward'],
+        callback_data=f'OrderSearch_{N_max}_backward'),
+        InlineKeyboardButton(
+            text=f'{pg}/{pg_max}',
+            callback_data=f'OrderSearchCount'),
+        InlineKeyboardButton(
+            text=PAGE['forward'],
+            callback_data=f'OrderSearch_{N_max}_forward'),
+        width=3)
+
+    # Возвращаем объект инлайн-клавиатуры
+    return kb_builder.as_markup()
+
+
 '''Клавиатура на оценку исполнителей после выполненного заказа'''
 async def kb_user_score(users_order, id_order):
     kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()

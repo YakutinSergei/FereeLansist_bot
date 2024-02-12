@@ -22,9 +22,11 @@ class FSMperformer_add(StatesGroup):
     specialization = State()
     count = State()
 
+
 #FSM для заказчика
 class FSMcustomer_add(StatesGroup):
     name = State()
+
 
 #Команда старт
 @router.message(CommandStart())
@@ -40,6 +42,7 @@ async def process_start_command(message: Message):
                                                                   LEXICON_RU['performer'],
                                                                    LEXICON_RU['customer']
                                                                    ))
+
     elif user_status == 1:
         user = await get_user_profile(tg_id=message.from_user.id)
         txt_profile = (f"<b><i>🌟ПРОФИЛЬ🌟</i></b>\n\n"
@@ -191,6 +194,7 @@ async def process_specializations_name(callback: CallbackQuery, state: FSMContex
 
 
 # Кнопка мои заказы
+
 @router.message(F.text == LEXICON_RU['my_orders'])
 async def process_my_order(message: Message):
 # Проверяем есть ли такой пользователь
@@ -220,7 +224,10 @@ async def process_my_order(message: Message):
         else:
             await message.answer(text='У вас нет заказов')
 
+
 '''Листание моих заказов со стороны заказчика'''
+
+
 @router.callback_query(F.data.startswith('myOrder_'))
 async def paging_order(callback: CallbackQuery):
     user_status = await bd_get_user_status(tg_id=callback.from_user.id)
@@ -274,7 +281,7 @@ async def paging_order(callback: CallbackQuery):
 @router.callback_query(F.data.startswith('customerOrder_'))
 async def info_order_customer(callback: CallbackQuery):
     id_order = int(callback.data.split('_')[-1])
-    order = await get_order_info(id_order)
+    order = await get_order_info(id_order) # получение информации о заказе
     if (datetime.now() - (order['date_of_creation'] + timedelta(hours=3))) > timedelta(hours=3):
         status = lx_common_phrases['my_order_activ']
     else:
@@ -329,7 +336,7 @@ async def proces_order_completed(callback: CallbackQuery):
 
         # Запускаем событие через 3 часа, передаем id_order и записываем всем исполнителям, что заказ выполнен
         scheduler = AsyncIOScheduler(timezone='Europe/Moscow')
-        scheduler.add_job(apsh.completed_user_order, 'date', run_date=datetime.now() + timedelta(seconds=15),
+        scheduler.add_job(apsh.completed_user_order, 'date', run_date=datetime.now() + timedelta(hours=3),
                           args=(id_order,))
         scheduler.start()
 

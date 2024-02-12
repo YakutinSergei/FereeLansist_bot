@@ -51,7 +51,6 @@ async def main():
     dp.include_router(order_handlers.router)
     dp.include_router(start_handlers.router)
     dp.include_router(executor_handlers.router)
-    # dp.include_router(no_group_handlers.router)
 
 
     # Пропускаем накопившиеся апдейты и запускаем polling
